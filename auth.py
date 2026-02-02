@@ -1,7 +1,6 @@
 """
 Google Cloud authentication utilities
 """
-import json
 import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -21,7 +20,7 @@ class GoogleAuthClient:
         try:
             service_account_path = Config.SERVICE_ACCOUNT_JSON
             
-            if not os.path.exists(service_account_path):
+            if not service_account_path or not os.path.exists(service_account_path):
                 raise FileNotFoundError(f"Service account file not found: {service_account_path}")
             
             # Load service account credentials
@@ -54,7 +53,7 @@ class GoogleAuthClient:
             dict: Authentication status and details
         """
         try:
-            if not self.credentials:
+            if not self.credentials or not self.service:
                 return {
                     'status': 'error',
                     'authenticated': False,
@@ -64,10 +63,6 @@ class GoogleAuthClient:
             # Verify credentials by checking the service account email
             service_account_email = self.credentials.service_account_email
             project_id = self.credentials.project_id
-            
-            # Try to make a simple API call to verify authentication
-            request = self.service.enterprises().list(projectId=Config.CLOUD_PROJECT_ID)
-            result = request.execute()
             
             return {
                 'status': 'success',
@@ -91,3 +86,106 @@ class GoogleAuthClient:
     def get_service(self):
         """Get the Android Management API service"""
         return self.service
+    
+    def list_enterprises(self):
+        """
+        List all enterprises in the project
+        
+        Returns:
+            dict: List of all enterprises
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            request = self.service.enterprises().list(projectId=Config.CLOUD_PROJECT_ID)
+            result = request.execute()
+            
+            enterprises = result.get('enterprises', [])
+            
+            if enterprises:
+                return {
+                    'found': True,
+                    'enterprises': [
+                        {
+                            'name': ent.get('name'),
+                            'display_name': ent.get('enterpriseDisplayName'),
+                            'enterprise_id': ent.get('name', '').split('/')[-1]
+                        }
+                        for ent in enterprises
+                    ]
+                }
+            
+            return {'found': False, 'enterprises': []}
+            
+        except Exception as e:
+            raise Exception(f"Failed to list enterprises: {str(e)}")
+    
+    def generate_signup_url(self, callback_url=None):
+        """
+        Generate enterprise signup URL
+        
+        Args:
+            callback_url: Optional callback URL after signup
+            
+        Returns:
+            dict: Contains 'signup_url' and 'signup_name'
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            resolved_callback_url = callback_url or f"http://localhost:{Config.PORT}/api/v1/enterprise/callback"
+            
+            request = self.service.signupUrls().create(
+                projectId=Config.CLOUD_PROJECT_ID,
+                callbackUrl=resolved_callback_url
+            )
+            result = request.execute()
+            
+            return {
+                'url': result.get('url', ''),
+                'name': result.get('name', '')
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate signup URL: {str(e)}")
+    
+    def create_enterprise(self, signup_url_name, enterprise_token):
+        """
+        Create enterprise for organization using signup URL token
+        
+        Args:
+            signup_url_name: The signup URL name (e.g., 'signupUrls/LC...')
+            enterprise_token: The token from signup completion
+            
+        Returns:
+            dict: Enterprise information including name and display_name
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            # Create enterprise using signup URL token
+            body = {
+                'displayName': 'Enterprise'
+            }
+            
+            request = self.service.enterprises().create(
+                projectId=Config.CLOUD_PROJECT_ID,
+                signupUrlName=signup_url_name,
+                enterpriseToken=enterprise_token,
+                body=body
+            )
+            result = request.execute()
+            
+            return {
+                'success': True,
+                'enterprise_name': result.get('name', ''),
+                'display_name': result.get('displayName', ''),
+                'enterprise_id': result.get('name', '').split('/')[-1]
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to create enterprise: {str(e)}")
+

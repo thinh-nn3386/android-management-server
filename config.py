@@ -12,9 +12,10 @@ class Config:
     """Base configuration"""
     CLOUD_PROJECT_ID = os.getenv('CLOUD_PROJECT_ID')
     SERVICE_ACCOUNT_JSON = os.getenv('SERVICE_ACCOUNT_JSON')
+    SQLITE_DB_PATH = os.getenv('SQLITE_DB_PATH', 'local.db')
     FLASK_ENV = os.getenv('FLASK_ENV', 'production')
     DEBUG = os.getenv('FLASK_DEBUG', False)
-    PORT = int(os.getenv('PORT', 5000))
+    PORT = int(os.getenv('PORT', 8088))
 
 
 def validate_config():

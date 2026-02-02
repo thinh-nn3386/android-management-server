@@ -16,13 +16,6 @@ source venv/bin/activate
 echo "Installing dependencies..."
 pip install -r requirements.txt
 
-# Create .env file from example
-if [ ! -f .env ]; then
-    echo "Creating .env file from .env.example..."
-    cp .env.example .env
-    echo "⚠️  Please update .env with your Google Cloud credentials"
-fi
-
 echo "✅ Setup complete!"
 echo ""
 echo "Next steps:"
