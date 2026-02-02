@@ -188,4 +188,255 @@ class GoogleAuthClient:
             
         except Exception as e:
             raise Exception(f"Failed to create enterprise: {str(e)}")
+    
+    def list_policies(self, enterprise_name):
+        """
+        List all policies for an enterprise
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            
+        Returns:
+            dict: List of policies
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            request = self.service.enterprises().policies().list(parent=enterprise_name)
+            result = request.execute()
+            
+            policies = result.get('policies', [])
+            
+            return {
+                'success': True,
+                'policies': [
+                    {
+                        'name': policy.get('name', ''),
+                        'policy_id': policy.get('name', '').split('/')[-1],
+                        'version': policy.get('version', ''),
+                        'applications': policy.get('applications', [])
+                    }
+                    for policy in policies
+                ],
+                'count': len(policies)
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to list policies: {str(e)}")
+    
+    def create_or_update_policy(self, enterprise_name, policy_name, policy_body):
+        """
+        Create or update a policy
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            policy_name: Policy name (e.g., 'my-policy')
+            policy_body: Policy configuration as dict
+            
+        Returns:
+            dict: Policy information
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            parent = enterprise_name
+            name = f"{enterprise_name}/policies/{policy_name}"
+            
+            request = self.service.enterprises().policies().patch(
+                name=name,
+                body=policy_body
+            )
+            result = request.execute()
+            
+            return {
+                'success': True,
+                'policy': {
+                    'name': result.get('name', ''),
+                    'policy_id': result.get('name', '').split('/')[-1],
+                    'version': result.get('version', ''),
+                    'applications': result.get('applications', [])
+                }
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to create/update policy: {str(e)}")
+    
+    def delete_policy(self, enterprise_name, policy_name):
+        """
+        Delete a policy
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            policy_name: Policy name (e.g., 'my-policy')
+            
+        Returns:
+            dict: Success status
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            name = f"{enterprise_name}/policies/{policy_name}"
+            
+            request = self.service.enterprises().policies().delete(name=name)
+            request.execute()
+            
+            
+            return {
+                'success': True,
+                'message': f'Policy {policy_name} deleted successfully'
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to delete policy: {str(e)}")
+    
+    def list_devices(self, enterprise_name):
+        """
+        List all devices for an enterprise
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            
+        Returns:
+            dict: List of devices
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            request = self.service.enterprises().devices().list(parent=enterprise_name)
+            result = request.execute()
+            
+            devices = result.get('devices', [])
+            
+            return {
+                'success': True,
+                'devices': [
+                    {
+                        'name': device.get('name', ''),
+                        'device_id': device.get('name', '').split('/')[-1],
+                        'state': device.get('state', ''),
+                        'appliedPolicyName': device.get('appliedPolicyName', ''),
+                        'appliedState': device.get('appliedState', ''),
+                        'hardwareInfo': device.get('hardwareInfo', {}),
+                        'policyName': device.get('policyName', '')
+                    }
+                    for device in devices
+                ],
+                'count': len(devices)
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to list devices: {str(e)}")
+    
+    def get_device(self, enterprise_name, device_id):
+        """
+        Get single device information
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            device_id: Device ID
+            
+        Returns:
+            dict: Device information
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            name = f"{enterprise_name}/devices/{device_id}"
+            request = self.service.enterprises().devices().get(name=name)
+            result = request.execute()
+            
+            return {
+                'success': True,
+                'device': {
+                    'name': result.get('name', ''),
+                    'device_id': result.get('name', '').split('/')[-1],
+                    'state': result.get('state', ''),
+                    'appliedPolicyName': result.get('appliedPolicyName', ''),
+                    'appliedState': result.get('appliedState', ''),
+                    'hardwareInfo': result.get('hardwareInfo', {}),
+                    'softwareInfo': result.get('softwareInfo', {}),
+                    'memoryInfo': result.get('memoryInfo', {}),
+                    'networkInfo': result.get('networkInfo', {}),
+                    'policyName': result.get('policyName', ''),
+                    'enrollmentTime': result.get('enrollmentTime', ''),
+                    'lastStatusReportTime': result.get('lastStatusReportTime', '')
+                }
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to get device: {str(e)}")
+    
+    def create_enrollment_token(self, enterprise_name, policy_name):
+        """
+        Create enrollment token for device provisioning
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            policy_name: Policy name to apply (e.g., 'my-policy')
+            
+        Returns:
+            dict: Enrollment token information
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            body = {
+                'policyName': f"{enterprise_name}/policies/{policy_name}"
+            }
+            
+            request = self.service.enterprises().enrollmentTokens().create(
+                parent=enterprise_name,
+                body=body
+            )
+            result = request.execute()
+            
+            return {
+                'success': True,
+                'enrollment_token': {
+                    'name': result.get('name', ''),
+                    'value': result.get('value', ''),
+                    'qrCode': result.get('qrCode', ''),
+                    'policyName': result.get('policyName', ''),
+                    'expirationTimestamp': result.get('expirationTimestamp', '')
+                }
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to create enrollment token: {str(e)}")
+    
+    def delete_device(self, enterprise_name, device_id):
+        """
+        Delete a device from enterprise
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            device_id: Device ID
+            
+        Returns:
+            dict: Success status
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            name = f"{enterprise_name}/devices/{device_id}"
+            request = self.service.enterprises().devices().delete(name=name)
+            request.execute()
+            
+            return {
+                'success': True,
+                'message': f'Device {device_id} deleted successfully'
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to delete device: {str(e)}")
+
+
+
 

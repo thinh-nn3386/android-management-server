@@ -167,6 +167,169 @@ Content-Type: application/json
 }
 ```
 
+## Policy Management
+
+### List Policies
+```
+GET /api/v1/policies?enterprise_name=enterprises/LC...
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Policies retrieved successfully",
+  "enterprise_name": "enterprises/LC...",
+  "policies": [
+    {
+      "name": "enterprises/LC.../policies/my-policy",
+      "policy_id": "my-policy",
+      "version": "1",
+      "applications": []
+    }
+  ],
+  "count": 1
+}
+```
+
+### Create or Update Policy
+```
+POST /api/v1/policies
+Content-Type: application/json
+
+{
+  "enterprise_name": "enterprises/LC...",
+  "policy_name": "my-policy",
+  "policy_body": {
+    "applications": [
+      {
+        "packageName": "com.example.app",
+        "installType": "FORCE_INSTALLED"
+      }
+    ]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Policy created/updated successfully",
+  "policy": {
+    "name": "enterprises/LC.../policies/my-policy",
+    "policy_id": "my-policy",
+    "version": "1",
+    "applications": [...]
+  }
+}
+```
+
+### Delete Policy
+```
+DELETE /api/v1/policies?enterprise_name=enterprises/LC...&policy_name=my-policy
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Policy my-policy deleted successfully"
+}
+```
+
+## Device Management
+
+### List Devices
+```
+GET /api/v1/devices?enterprise_name=enterprises/LC...
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Devices retrieved successfully",
+  "enterprise_name": "enterprises/LC...",
+  "devices": [
+    {
+      "name": "enterprises/LC.../devices/device123",
+      "device_id": "device123",
+      "state": "ACTIVE",
+      "appliedPolicyName": "enterprises/LC.../policies/my-policy",
+      "appliedState": "ACTIVE",
+      "hardwareInfo": {...},
+      "policyName": "enterprises/LC.../policies/my-policy"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Get Single Device
+```
+GET /api/v1/devices/{device_id}?enterprise_name=enterprises/LC...
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Device retrieved successfully",
+  "device": {
+    "name": "enterprises/LC.../devices/device123",
+    "device_id": "device123",
+    "state": "ACTIVE",
+    "appliedPolicyName": "enterprises/LC.../policies/my-policy",
+    "hardwareInfo": {...},
+    "softwareInfo": {...},
+    "memoryInfo": {...},
+    "networkInfo": {...},
+    "enrollmentTime": "2026-01-01T00:00:00Z",
+    "lastStatusReportTime": "2026-02-02T12:00:00Z"
+  }
+}
+```
+
+### Create Enrollment Token (Provision Device)
+```
+POST /api/v1/devices/enrollment-token
+Content-Type: application/json
+
+{
+  "enterprise_name": "enterprises/LC...",
+  "policy_name": "my-policy"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Enrollment token created successfully",
+  "enrollment_token": {
+    "name": "enterprises/LC.../enrollmentTokens/token123",
+    "value": "ABC123TOKEN",
+    "qrCode": "data:image/png;base64,...",
+    "policyName": "enterprises/LC.../policies/my-policy",
+    "expirationTimestamp": "2026-02-09T12:00:00Z"
+  }
+}
+```
+
+### Delete Device
+```
+DELETE /api/v1/devices/{device_id}?enterprise_name=enterprises/LC...
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Device device123 deleted successfully"
+}
+```
+
 ### Authentication Status
 
 **Response (Success):**
@@ -223,6 +386,45 @@ curl http://localhost:8088/api/v1/enterprise/mappings
 curl -X POST http://localhost:8088/api/v1/enterprise/register \
   -H "Content-Type: application/json" \
   -d '{"signup_url_name": "signupUrls/LC...", "enterprise_token": "token-value", "email": "user@example.com"}'
+
+# List policies
+curl "http://localhost:8088/api/v1/policies?enterprise_name=enterprises/LC037onrpk"
+
+# Create or update policy
+curl -X POST http://localhost:8088/api/v1/policies \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enterprise_name": "enterprises/LC037onrpk",
+    "policy_name": "my-policy",
+    "policy_body": {
+      "applications": [
+        {
+          "packageName": "com.example.app",
+          "installType": "FORCE_INSTALLED"
+        }
+      ]
+    }
+  }'
+
+# Delete policy
+curl -X DELETE "http://localhost:8088/api/v1/policies?enterprise_name=enterprises/LC037onrpk&policy_name=my-policy"
+
+# List devices
+curl "http://localhost:8088/api/v1/devices?enterprise_name=enterprises/LC037onrpk"
+
+# Get single device
+curl "http://localhost:8088/api/v1/devices/device123?enterprise_name=enterprises/LC037onrpk"
+
+# Create enrollment token for device provisioning
+curl -X POST http://localhost:8088/api/v1/devices/enrollment-token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enterprise_name": "enterprises/LC037onrpk",
+    "policy_name": "my-policy"
+  }'
+
+# Delete device
+curl -X DELETE "http://localhost:8088/api/v1/devices/device123?enterprise_name=enterprises/LC037onrpk"
 ```
 
 ### Using Python test script

@@ -296,6 +296,333 @@ def register_enterprise():
         }), 500
 
 
+@app.route('/api/v1/policies', methods=['GET'])
+@error_handler
+def list_policies():
+    """
+    List all policies for an enterprise
+    
+    Query params:
+        enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    enterprise_name = request.args.get('enterprise_name')
+    
+    if not enterprise_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name query parameter is required'
+        }), 400
+    
+    try:
+        result = google_auth_client.list_policies(enterprise_name)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Policies retrieved successfully',
+            'enterprise_name': enterprise_name,
+            'policies': result['policies'],
+            'count': result['count']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing policies: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to list policies: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/policies', methods=['POST'])
+@error_handler
+def create_or_update_policy():
+    """
+    Create or update a policy
+    
+    Request body:
+        {
+            "enterprise_name": "enterprises/LC...",
+            "policy_name": "my-policy",
+            "policy_body": { ... policy configuration ... }
+        }
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    
+    if not data or 'enterprise_name' not in data or 'policy_name' not in data or 'policy_body' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name, policy_name, and policy_body are required'
+        }), 400
+    
+    enterprise_name = data['enterprise_name'].strip()
+    policy_name = data['policy_name'].strip()
+    policy_body = data['policy_body']
+    
+    if not enterprise_name or not policy_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name and policy_name cannot be empty'
+        }), 400
+    
+    try:
+        result = google_auth_client.create_or_update_policy(
+            enterprise_name=enterprise_name,
+            policy_name=policy_name,
+            policy_body=policy_body
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Policy created/updated successfully',
+            'policy': result['policy']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error creating/updating policy: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create/update policy: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/policies', methods=['DELETE'])
+@error_handler
+def delete_policy():
+    """
+    Delete a policy
+    
+    Query params:
+        enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+        policy_name: Policy name (e.g., 'my-policy')
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    enterprise_name = request.args.get('enterprise_name')
+    policy_name = request.args.get('policy_name')
+    
+    if not enterprise_name or not policy_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name and policy_name query parameters are required'
+        }), 400
+    
+    try:
+        result = google_auth_client.delete_policy(
+            enterprise_name=enterprise_name,
+            policy_name=policy_name
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': result['message']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting policy: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to delete policy: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/devices', methods=['GET'])
+@error_handler
+def list_devices():
+    """
+    List all devices for an enterprise
+    
+    Query params:
+        enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    enterprise_name = request.args.get('enterprise_name')
+    
+    if not enterprise_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name query parameter is required'
+        }), 400
+    
+    try:
+        result = google_auth_client.list_devices(enterprise_name)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Devices retrieved successfully',
+            'enterprise_name': enterprise_name,
+            'devices': result['devices'],
+            'count': result['count']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing devices: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to list devices: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/devices/<device_id>', methods=['GET'])
+@error_handler
+def get_device(device_id):
+    """
+    Get single device information
+    
+    Query params:
+        enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+    Path params:
+        device_id: Device ID
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    enterprise_name = request.args.get('enterprise_name')
+    
+    if not enterprise_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name query parameter is required'
+        }), 400
+    
+    try:
+        result = google_auth_client.get_device(enterprise_name, device_id)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Device retrieved successfully',
+            'device': result['device']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting device: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to get device: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/devices/enrollment-token', methods=['POST'])
+@error_handler
+def create_enrollment_token():
+    """
+    Create enrollment token for device provisioning
+    
+    Request body:
+        {
+            "enterprise_name": "enterprises/LC...",
+            "policy_name": "my-policy"
+        }
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    
+    if not data or 'enterprise_name' not in data or 'policy_name' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name and policy_name are required'
+        }), 400
+    
+    enterprise_name = data['enterprise_name'].strip()
+    policy_name = data['policy_name'].strip()
+    
+    if not enterprise_name or not policy_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name and policy_name cannot be empty'
+        }), 400
+    
+    try:
+        result = google_auth_client.create_enrollment_token(
+            enterprise_name=enterprise_name,
+            policy_name=policy_name
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Enrollment token created successfully',
+            'enrollment_token': result['enrollment_token']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error creating enrollment token: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create enrollment token: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/devices/<device_id>', methods=['DELETE'])
+@error_handler
+def delete_device(device_id):
+    """
+    Delete a device
+    
+    Query params:
+        enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+    Path params:
+        device_id: Device ID
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    enterprise_name = request.args.get('enterprise_name')
+    
+    if not enterprise_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name query parameter is required'
+        }), 400
+    
+    try:
+        result = google_auth_client.delete_device(
+            enterprise_name=enterprise_name,
+            device_id=device_id
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': result['message']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting device: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to delete device: {str(e)}'
+        }), 500
+
+
 @app.route('/api/v1/auth/status', methods=['GET'])
 @error_handler
 def check_auth_status():
