@@ -1,0 +1,10 @@
+requirements.txt
+.env
+.env.local
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+*.egg-info/
+
+endpoint-agent-889491ab3ab5.json
