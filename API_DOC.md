@@ -178,56 +178,6 @@ Verifies Google Cloud service account authentication.
 ```
 
 ---
-
-### Map Email to Enterprise
-```
-POST /api/v1/enterprise/map
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "email": "user@example.com",
-  "enterprise_name": "enterprises/LC037onrpk"
-}
-```
-
-Maps an email address to an enterprise.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Email mapped to enterprise successfully"
-}
-```
-
----
-
-### List Email-Enterprise Mappings
-```
-GET /api/v1/enterprise/mappings
-Authorization: Bearer <token>
-```
-
-Retrieves all email-to-enterprise mappings.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Mappings retrieved successfully",
-  "mappings": [
-    {
-      "email": "user@example.com",
-      "enterprise_name": "enterprises/LC..."
-    }
-  ],
-  "count": 1
-}
-```
-
----
-
 ### Register New Enterprise
 ```
 POST /api/v1/enterprise/register

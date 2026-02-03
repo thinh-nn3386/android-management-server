@@ -2,6 +2,7 @@
 Main Flask application for Android Management API
 """
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from functools import wraps
 import logging
 from config import Config, validate_config
@@ -11,6 +12,19 @@ from auth_utils import hash_password, verify_password, generate_jwt_token, decod
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Configure CORS for frontend development
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    },
+    r"/health": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "OPTIONS"]
+    }
+})
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -328,72 +342,6 @@ def enterprise_login():
             'status': 'error',
             'message': f'Login check failed: {str(e)}'
         }), 500
-
-
-@app.route('/api/v1/enterprise/map', methods=['POST'])
-@error_handler
-@require_jwt
-def map_email_to_enterprise():
-    """
-    Map an email to a specific enterprise
-    
-    Request body:
-        {
-            "email": "user@example.com",
-            "enterprise_name": "enterprises/LC037onrpk"
-        }
-    """
-    if not local_db:
-        return jsonify({
-            'status': 'error',
-            'message': 'Database not initialized'
-        }), 503
-    
-    data = request.get_json()
-    
-    if not data or 'email' not in data or 'enterprise_name' not in data:
-        return jsonify({
-            'status': 'error',
-            'message': 'Email and enterprise_name are required'
-        }), 400
-    
-    email = data['email'].strip()
-    enterprise_name = data['enterprise_name'].strip()
-    
-    if not email or not enterprise_name:
-        return jsonify({
-            'status': 'error',
-            'message': 'Email and enterprise_name cannot be empty'
-        }), 400
-    
-    local_db.upsert_mapping(email, enterprise_name)
-    
-    return jsonify({
-        'status': 'success',
-        'message': 'Email mapped to enterprise successfully',
-        'email': email,
-        'enterprise_name': enterprise_name
-    }), 200
-
-
-@app.route('/api/v1/enterprise/mappings', methods=['GET'])
-@error_handler
-@require_jwt
-def get_all_mappings():
-    """Get all email-enterprise mappings"""
-    if not local_db:
-        return jsonify({
-            'status': 'error',
-            'message': 'Database not initialized'
-        }), 503
-    
-    mappings = local_db.list_mappings()
-    
-    return jsonify({
-        'status': 'success',
-        'mappings': mappings,
-        'count': len(mappings)
-    }), 200
 
 
 @app.route('/api/v1/enterprise/register', methods=['POST'])

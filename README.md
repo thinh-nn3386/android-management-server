@@ -10,6 +10,7 @@ Flask-based RESTful API server for managing Android devices via Google Cloud And
 - ✅ Google Cloud service account authentication
 - ✅ Android Management API integration
 - ✅ Local SQLite database for user credentials
+- ✅ CORS enabled for frontend integration (http://localhost:3000)
 - ✅ Environment-based configuration
 - ✅ Health check and status endpoints
 
@@ -90,13 +91,33 @@ For complete API documentation including all endpoints, request/response example
 **Protected Endpoints (Require JWT):**
 - `POST /api/v1/enterprise/login` - Check enterprise registration
 - `GET /api/v1/auth/status` - Verify service account auth
-- `POST/GET /api/v1/enterprise/map` & `/mappings` - Manage enterprise mappings
 - `POST /api/v1/enterprise/register` - Register new enterprise
 - `GET/POST/DELETE /api/v1/policies` - Policy management
 - `GET/POST/DELETE /api/v1/devices` - Device management
 - `POST /api/v1/devices/enrollment-token` - Generate enrollment token
 
 See [API_DOC.md](API_DOC.md) for detailed documentation.
+
+## CORS Configuration
+
+The server is configured to accept requests from frontend development server running on `http://localhost:3000`.
+
+**CORS Settings:**
+- **Origin:** `http://localhost:3000`
+- **Methods:** GET, POST, PUT, DELETE, OPTIONS
+- **Headers:** Content-Type, Authorization
+
+To modify CORS settings for production, update the `CORS()` configuration in `app.py`:
+
+```python
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://your-frontend-domain.com"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+```
 
 ## Project Structure
 
