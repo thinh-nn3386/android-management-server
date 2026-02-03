@@ -257,17 +257,14 @@ def login():
 @require_jwt
 def enterprise_login():
     """
-    Check if email has registered enterprise (requires JWT)
+    Check if user has a registered enterprise
     
-    Request body:
-        {
-            "email": "user@example.com",
-            "callback_url": "https://your-domain.com/callback"
-        }
+    Email is extracted from JWT token in Authorization header.
+    No request body required.
     
     Returns:
-        - If enterprise found: enterprise information
-        - If not found: signup URL
+        - If found: enterprise_found=true with enterprise info
+        - If not found: enterprise_found=false
     """
     if not google_auth_client or not local_db:
         return jsonify({
@@ -275,72 +272,108 @@ def enterprise_login():
             'message': 'Application not properly initialized'
         }), 503
     
-    # Get email from request body
-    data = request.get_json()
-    if not data or 'email' not in data:
-        return jsonify({
-            'status': 'error',
-            'message': 'Email is required in request body'
-        }), 400
-    
-    email = data['email'].strip()
-    callback_url = data.get('callback_url')
+    # Get email from JWT token (set by require_jwt decorator)
+    email = getattr(request, 'user_email', None)
     
     if not email:
         return jsonify({
             'status': 'error',
-            'message': 'Email cannot be empty'
+            'message': 'Unable to extract email from token'
+        }), 401
+    
+    try:
+        # Check if email is mapped to an enterprise
+        enterprise_name = local_db.get_enterprise_name(email)
+        
+        if not enterprise_name:
+            return jsonify({
+                'status': 'success',
+                'enterprise_found': False,
+                'message': 'No enterprise found for this email',
+                'email': email
+            }), 200
+        
+        # Get enterprise details from Google Cloud
+        enterprise_result = google_auth_client.list_enterprises()
+        enterprises = enterprise_result.get('enterprises', [])
+        
+        for enterprise in enterprises:
+            if enterprise['name'] == enterprise_name:
+                return jsonify({
+                    'status': 'success',
+                    'enterprise_found': True,
+                    'message': 'Enterprise found for this email',
+                    'email': email,
+                    'enterprise': enterprise
+                }), 200
+        
+        # Enterprise name exists in DB but not in Google Cloud
+        return jsonify({
+            'status': 'success',
+            'enterprise_found': False,
+            'message': 'Enterprise mapping exists but enterprise not found in Google Cloud',
+            'email': email
+        }), 200
+            
+    except Exception as e:
+        logger.error(f"Error in enterprise login: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Enterprise check failed: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/enterprise/signup-url', methods=['POST'])
+@error_handler
+@require_jwt
+def create_signup_url():
+    """
+    Generate a signup URL for enterprise registration
+    
+    Request body:
+        {
+            "callback_url": "https://your-domain.com/callback"
+        }
+    
+    Returns:
+        Signup URL and signup name
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    if not data or 'callback_url' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'callback_url is required'
         }), 400
+    
+    callback_url = data['callback_url'].strip()
     
     if not callback_url:
         return jsonify({
             'status': 'error',
-            'message': 'Callback URL cannot be empty'
+            'message': 'callback_url cannot be empty'
         }), 400
     
     try:
-        enterprise_name = local_db.get_enterprise_name(email)
-        
-        if not enterprise_name:
-            signup_result = google_auth_client.generate_signup_url(callback_url=callback_url)
-            return jsonify({
-                'status': 'success',
-                'enterprise_found': False,
-                'message': 'Email not registered. Please sign up.',
-                'email': email,
-                'signup_url': signup_result['url'],
-                'signup_name': signup_result['name']
-            }), 200
-        
-        enterprise_result = google_auth_client.list_enterprises()
-        enterprises = enterprise_result.get('enterprises', [])
-        
-        if enterprises:
-            for enterprise in enterprises:
-                if enterprise['name'] == enterprise_name:
-                    return jsonify({
-                        'status': 'success',
-                        'enterprise_found': True,
-                        'message': 'Enterprise found for this email',
-                        'email': email,
-                        'enterprise': enterprise
-                    }), 200
-        
         signup_result = google_auth_client.generate_signup_url(callback_url=callback_url)
+        
         return jsonify({
             'status': 'success',
-            'enterprise_found': False,
-            'message': 'Enterprise not found. Please sign up.',
-            'email': email,
+            'message': 'Signup URL generated successfully',
             'signup_url': signup_result['url'],
             'signup_name': signup_result['name']
         }), 200
             
     except Exception as e:
-        logger.error(f"Error in enterprise login endpoint: {str(e)}")
+        logger.error(f"Error generating signup URL: {str(e)}")
         return jsonify({
             'status': 'error',
-            'message': f'Login check failed: {str(e)}'
+            'message': f'Failed to generate signup URL: {str(e)}'
         }), 500
 
 

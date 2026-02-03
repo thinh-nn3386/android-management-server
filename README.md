@@ -90,6 +90,7 @@ For complete API documentation including all endpoints, request/response example
 
 **Protected Endpoints (Require JWT):**
 - `POST /api/v1/enterprise/login` - Check enterprise registration
+- `POST /api/v1/enterprise/signup-url` - Generate signup URL for registration
 - `GET /api/v1/auth/status` - Verify service account auth
 - `POST /api/v1/enterprise/register` - Register new enterprise
 - `GET/POST/DELETE /api/v1/policies` - Policy management

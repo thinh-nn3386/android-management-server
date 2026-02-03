@@ -99,7 +99,7 @@ Authenticates user and returns JWT token.
 
 All protected endpoints require the `Authorization` header:
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer <token>
 ```
 
 ---
@@ -107,15 +107,10 @@ Authorization: Bearer <your-jwt-token>
 ### Check Enterprise Registration
 ```
 POST /api/v1/enterprise/login
-Content-Type: application/json
 Authorization: Bearer <token>
-
-{
-  "callback_url": "https://your-domain.com/callback"
-}
 ```
 
-Checks if user has an associated enterprise.
+Checks if user has a registered enterprise. Email is extracted from JWT token.
 
 **Response (Enterprise Found):**
 ```json
@@ -132,14 +127,38 @@ Checks if user has an associated enterprise.
 }
 ```
 
-**Response (Enterprise Not Found - Signup URL):**
+**Response (Enterprise Not Found):**
 ```json
 {
   "status": "success",
   "enterprise_found": false,
-  "message": "No enterprise found. Please sign up.",
-  "email": "user@example.com",
-  "signup_url": "https://enterprise.google.com/android/enroll?et=..."
+  "message": "No enterprise found for this email",
+  "email": "user@example.com"
+}
+```
+
+---
+
+### Generate Signup URL
+```
+POST /api/v1/enterprise/signup-url
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "callback_url": "https://your-domain.com/callback"
+}
+```
+
+Generates a signup URL for new enterprise registration.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Signup URL generated successfully",
+  "signup_url": "https://enterprise.google.com/android/enroll?et=...",
+  "signup_name": "signupUrls/LC..."
 }
 ```
 
@@ -442,9 +461,7 @@ TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 # Check enterprise registration
 curl -X POST http://localhost:8088/api/v1/enterprise/login \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"callback_url": "https://your-domain.com/callback"}'
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
@@ -478,19 +495,13 @@ curl http://localhost:8088/api/v1/auth/status \
 
 # Check enterprise registration
 curl -X POST http://localhost:8088/api/v1/enterprise/login \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Generate signup URL
+curl -X POST http://localhost:8088/api/v1/enterprise/signup-url \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"callback_url": "https://your-domain.com/callback"}'
-
-# Map email to enterprise
-curl -X POST http://localhost:8088/api/v1/enterprise/map \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{"email": "user@example.com", "enterprise_name": "enterprises/LC037onrpk"}'
-
-# List mappings
-curl http://localhost:8088/api/v1/enterprise/mappings \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Register new enterprise
 curl -X POST http://localhost:8088/api/v1/enterprise/register \
