@@ -25,11 +25,23 @@ class LocalDatabase:
 
     def _init_db(self):
         with self._get_connection() as connection:
+            # Email-enterprise mapping table
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS email_enterprise (
                     email TEXT PRIMARY KEY,
                     enterprise_name TEXT NOT NULL
+                )
+                """
+            )
+            # User authentication table
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
@@ -59,3 +71,32 @@ class LocalDatabase:
                 {"email": row["email"], "enterprise_name": row["enterprise_name"]}
                 for row in cursor.fetchall()
             ]
+    
+    def create_user(self, email, password_hash):
+        """Create a new user with hashed password"""
+        with self._get_connection() as connection:
+            try:
+                connection.execute(
+                    "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+                    (email.lower(), password_hash)
+                )
+                return True
+            except sqlite3.IntegrityError:
+                return False  # User already exists
+    
+    def get_user(self, email):
+        """Get user by email"""
+        with self._get_connection() as connection:
+            cursor = connection.execute(
+                "SELECT id, email, password_hash, created_at FROM users WHERE email = ?",
+                (email.lower(),)
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "id": row["id"],
+                    "email": row["email"],
+                    "password_hash": row["password_hash"],
+                    "created_at": row["created_at"]
+                }
+            return None

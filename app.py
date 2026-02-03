@@ -7,6 +7,7 @@ import logging
 from config import Config, validate_config
 from auth import GoogleAuthClient
 from db import LocalDatabase
+from auth_utils import hash_password, verify_password, generate_jwt_token, decode_jwt_token
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -54,6 +55,42 @@ def error_handler(f):
     return decorated_function
 
 
+def require_jwt(f):
+    """Decorator to require JWT authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            return jsonify({
+                'status': 'error',
+                'message': 'Authorization header is missing'
+            }), 401
+        
+        try:
+            # Expected format: "Bearer <token>"
+            token = auth_header.split(' ')[1] if ' ' in auth_header else auth_header
+        except IndexError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid authorization header format'
+            }), 401
+        
+        payload = decode_jwt_token(token)
+        
+        if not payload:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid or expired token'
+            }), 401
+        
+        # Add user email to request context
+        setattr(request, 'user_email', payload['email'])
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -63,11 +100,150 @@ def health_check():
     }), 200
 
 
+@app.route('/api/v1/register', methods=['POST'])
+@error_handler
+def register():
+    """
+    Register a new user
+    
+    Request body:
+        {
+            "email": "user@example.com",
+            "password": "password123"
+        }
+    """
+    if not local_db:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    
+    if not data or 'email' not in data or 'password' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Email and password are required'
+        }), 400
+    
+    email = data['email'].strip()
+    password = data['password']
+    
+    if not email or not password:
+        return jsonify({
+            'status': 'error',
+            'message': 'Email and password cannot be empty'
+        }), 400
+    
+    if len(password) < 6:
+        return jsonify({
+            'status': 'error',
+            'message': 'Password must be at least 6 characters'
+        }), 400
+    
+    try:
+        # Hash password
+        password_hash = hash_password(password)
+        
+        # Create user in database
+        success = local_db.create_user(email, password_hash)
+        
+        if not success:
+            return jsonify({
+                'status': 'error',
+                'message': 'User already exists'
+            }), 409
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'User registered successfully',
+            'email': email
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error in register endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Registration failed: {str(e)}'
+        }), 500
+
+
 @app.route('/api/v1/login', methods=['POST'])
 @error_handler
 def login():
     """
-    Login endpoint - check if email has registered enterprise
+    Login with email and password, returns JWT token
+    
+    Request body:
+        {
+            "email": "user@example.com",
+            "password": "password123"
+        }
+    """
+    if not local_db:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    
+    if not data or 'email' not in data or 'password' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Email and password are required'
+        }), 400
+    
+    email = data['email'].strip()
+    password = data['password']
+    
+    if not email or not password:
+        return jsonify({
+            'status': 'error',
+            'message': 'Email and password cannot be empty'
+        }), 400
+    
+    try:
+        # Get user from database
+        user = local_db.get_user(email)
+        
+        if not user:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid email or password'
+            }), 401
+        
+        # Verify password
+        if not verify_password(password, user['password_hash']):
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid email or password'
+            }), 401
+        
+        # Generate JWT token
+        token = generate_jwt_token(email)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Login successful',
+            'token': token,
+            'email': email
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in login endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Login failed: {str(e)}'
+        }), 500
+
+
+@app.route('/api/v1/enterprise/login', methods=['POST'])
+@error_handler
+@require_jwt
+def enterprise_login():
+    """
+    Check if email has registered enterprise (requires JWT)
     
     Request body:
         {
@@ -147,7 +323,7 @@ def login():
         }), 200
             
     except Exception as e:
-        logger.error(f"Error in login endpoint: {str(e)}")
+        logger.error(f"Error in enterprise login endpoint: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': f'Login check failed: {str(e)}'
@@ -156,6 +332,7 @@ def login():
 
 @app.route('/api/v1/enterprise/map', methods=['POST'])
 @error_handler
+@require_jwt
 def map_email_to_enterprise():
     """
     Map an email to a specific enterprise
@@ -201,6 +378,7 @@ def map_email_to_enterprise():
 
 @app.route('/api/v1/enterprise/mappings', methods=['GET'])
 @error_handler
+@require_jwt
 def get_all_mappings():
     """Get all email-enterprise mappings"""
     if not local_db:
@@ -220,6 +398,7 @@ def get_all_mappings():
 
 @app.route('/api/v1/enterprise/register', methods=['POST'])
 @error_handler
+@require_jwt
 def register_enterprise():
     """
     Register new enterprise using signup URL token
@@ -298,6 +477,7 @@ def register_enterprise():
 
 @app.route('/api/v1/policies', methods=['GET'])
 @error_handler
+@require_jwt
 def list_policies():
     """
     List all policies for an enterprise
@@ -340,6 +520,7 @@ def list_policies():
 
 @app.route('/api/v1/policies', methods=['POST'])
 @error_handler
+@require_jwt
 def create_or_update_policy():
     """
     Create or update a policy
@@ -398,6 +579,7 @@ def create_or_update_policy():
 
 @app.route('/api/v1/policies', methods=['DELETE'])
 @error_handler
+@require_jwt
 def delete_policy():
     """
     Delete a policy
@@ -442,6 +624,7 @@ def delete_policy():
 
 @app.route('/api/v1/devices', methods=['GET'])
 @error_handler
+@require_jwt
 def list_devices():
     """
     List all devices for an enterprise
@@ -484,6 +667,7 @@ def list_devices():
 
 @app.route('/api/v1/devices/<device_id>', methods=['GET'])
 @error_handler
+@require_jwt
 def get_device(device_id):
     """
     Get single device information
@@ -526,6 +710,7 @@ def get_device(device_id):
 
 @app.route('/api/v1/devices/enrollment-token', methods=['POST'])
 @error_handler
+@require_jwt
 def create_enrollment_token():
     """
     Create enrollment token for device provisioning
@@ -581,6 +766,7 @@ def create_enrollment_token():
 
 @app.route('/api/v1/devices/<device_id>', methods=['DELETE'])
 @error_handler
+@require_jwt
 def delete_device(device_id):
     """
     Delete a device
