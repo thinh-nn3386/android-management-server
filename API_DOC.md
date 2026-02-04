@@ -164,6 +164,33 @@ Generates a signup URL for new enterprise registration.
 
 ---
 
+### Create Enterprise Web Token
+```
+POST /api/v1/enterprise/webtoken
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "enterprise_name": "enterprises/LC..."
+}
+```
+
+Creates a web token for embedding the EMM iframe.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Web token created successfully",
+  "web_token": {
+    "name": "enterprises/LC.../webTokens/123",
+    "value": "WEB_TOKEN_VALUE"
+  }
+}
+```
+
+---
+
 ### Check Service Account Authentication Status
 ```
 GET /api/v1/auth/status
@@ -502,6 +529,12 @@ curl -X POST http://localhost:8088/api/v1/enterprise/signup-url \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"callback_url": "https://your-domain.com/callback"}'
+
+# Create enterprise web token
+curl -X POST http://localhost:8088/api/v1/enterprise/webtoken \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"enterprise_name": "enterprises/LC037onrpk"}'
 
 # Register new enterprise
 curl -X POST http://localhost:8088/api/v1/enterprise/register \

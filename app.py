@@ -377,6 +377,68 @@ def create_signup_url():
         }), 500
 
 
+@app.route('/api/v1/enterprise/webtoken', methods=['POST'])
+@error_handler
+@require_jwt
+def create_enterprise_webtoken():
+    """
+    Create enterprise web token
+    
+    Request body (WebToken):
+        {
+            "enterprise_name": "enterprises/LC...",
+            "parent_frame_url": "https://your-domain.com" (optional),
+            "enable_features": ["PLAY_SEARCH", "PRIVATE_APPS", "WEB_APPS", "STORE_BUILDER"] (optional)
+        }
+    
+    Returns:
+        Web token information with value and URL
+    """
+    if not google_auth_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Application not properly initialized'
+        }), 503
+    
+    data = request.get_json()
+    if not data or 'enterprise_name' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name is required'
+        }), 400
+    
+    enterprise_name = data['enterprise_name'].strip()
+    if not enterprise_name:
+        return jsonify({
+            'status': 'error',
+            'message': 'enterprise_name cannot be empty'
+        }), 400
+    
+    # Optional WebToken parameters
+    parent_frame_url = data.get('parent_frame_url')
+    enable_features = data.get('enable_features')
+    
+    try:
+        result = google_auth_client.create_web_token(
+            enterprise_name=enterprise_name,
+            parent_frame_url=parent_frame_url,
+            enable_features=enable_features
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Web token created successfully',
+            'web_token': result.get('web_token', {})
+        }), 200
+            
+    except Exception as e:
+        logger.error(f"Error creating web token: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create web token: {str(e)}'
+        }), 500
+
+
 @app.route('/api/v1/enterprise/register', methods=['POST'])
 @error_handler
 @require_jwt

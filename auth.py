@@ -2,7 +2,9 @@
 Google Cloud authentication utilities
 """
 import os
+import certifi
 from google.oauth2 import service_account
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from config import Config
 
@@ -18,6 +20,11 @@ class GoogleAuthClient:
     def _initialize(self):
         """Initialize Google credentials from service account JSON"""
         try:
+            # Set up SSL certificate handling
+            ca_bundle_path = certifi.where()
+            os.environ['SSL_CERT_FILE'] = ca_bundle_path
+            os.environ['REQUESTS_CA_BUNDLE'] = ca_bundle_path
+
             service_account_path = Config.SERVICE_ACCOUNT_JSON
             
             if not service_account_path or not os.path.exists(service_account_path):
@@ -32,7 +39,7 @@ class GoogleAuthClient:
                 ]
             )
             
-            # Build Android Management API client
+            # Build Android Management API client with credentials
             self.service = build(
                 'androidmanagement',
                 'v1',
@@ -168,7 +175,7 @@ class GoogleAuthClient:
             
             # Create enterprise using signup URL token
             body = {
-                'displayName': 'Enterprise'
+                
             }
             
             request = self.service.enterprises().create(
@@ -182,12 +189,52 @@ class GoogleAuthClient:
             return {
                 'success': True,
                 'enterprise_name': result.get('name', ''),
-                'display_name': result.get('displayName', ''),
+                'display_name': result.get('enterpriseDisplayName', ''),
                 'enterprise_id': result.get('name', '').split('/')[-1]
             }
             
         except Exception as e:
             raise Exception(f"Failed to create enterprise: {str(e)}")
+
+    def create_web_token(self, enterprise_name, parent_frame_url=None, enable_features=None):
+        """
+        Create a web token for enterprise enrollment UI
+        
+        Args:
+            enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
+            parent_frame_url: Optional URL of the parent frame hosting the iframe
+            enable_features: Optional list of features to enable.
+                           Options: 'PLAY_SEARCH', 'PRIVATE_APPS', 'WEB_APPS', 'STORE_BUILDER'
+                           If not specified, all features are enabled by default.
+        Returns:
+            dict: Web token information with token value and URL
+        """
+        try:
+            if not self.service:
+                raise Exception("Service not initialized")
+            
+            # Build WebToken request body
+            request_body = {
+                "permissions": [
+                    "APPROVE_APPS"
+                ],
+                "enabledFeatures": [
+                   "FEATURE_UNSPECIFIED"   
+                ]
+            }
+            
+            request = self.service.enterprises().webTokens().create(
+                parent=enterprise_name,
+                body=request_body
+            )
+            result = request.execute()
+            return {
+                'success': True,
+                'web_token': result
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to create web token: {str(e)}")
     
     def list_policies(self, enterprise_name):
         """
