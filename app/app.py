@@ -5,9 +5,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from functools import wraps
 import logging
+
+from app.repositories.enterprise_repository import EnterpriseRepository
+from app.repositories.user_repository import UserRepository
 from config import Config, validate_config
 from auth import GoogleAuthClient
-from db import LocalDatabase
+from app.database import get_database
 from auth_utils import hash_password, verify_password, generate_jwt_token, decode_jwt_token
 
 # Initialize Flask app
@@ -32,12 +35,12 @@ logger = logging.getLogger(__name__)
 
 # Global auth client
 google_auth_client = None
-local_db = None
-
+user_repo = UserRepository()
+enterprise_repo = EnterpriseRepository()
 
 def init_app():
     """Initialize the application"""
-    global google_auth_client, local_db
+    global google_auth_client, db
     
     try:
         # Validate configuration
@@ -45,7 +48,7 @@ def init_app():
         
         # Initialize Google Auth Client
         google_auth_client = GoogleAuthClient()
-        local_db = LocalDatabase()
+        db = get_database()
         logger.info("Application initialized successfully")
         
     except Exception as e:
@@ -126,7 +129,7 @@ def register():
             "password": "password123"
         }
     """
-    if not local_db:
+    if not db:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -160,7 +163,7 @@ def register():
         password_hash = hash_password(password)
         
         # Create user in database
-        success = local_db.create_user(email, password_hash)
+        success = db.create_user(email, password_hash)
         
         if not success:
             return jsonify({
@@ -194,7 +197,7 @@ def login():
             "password": "password123"
         }
     """
-    if not local_db:
+    if not db:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -219,7 +222,7 @@ def login():
     
     try:
         # Get user from database
-        user = local_db.get_user(email)
+        user = db.get_user(email)
         
         if not user:
             return jsonify({
@@ -266,7 +269,7 @@ def enterprise_login():
         - If found: enterprise_found=true with enterprise info
         - If not found: enterprise_found=false
     """
-    if not google_auth_client or not local_db:
+    if not google_auth_client or not db:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -283,7 +286,7 @@ def enterprise_login():
     
     try:
         # Check if email is mapped to an enterprise
-        enterprise_name = local_db.get_enterprise_name(email)
+        enterprise_name = db.get_enterprise_name(email)
         
         if not enterprise_name:
             return jsonify({
@@ -456,7 +459,7 @@ def register_enterprise():
     Returns:
         Enterprise information and saves email mapping to database
     """
-    if not google_auth_client or not local_db:
+    if not google_auth_client or not db:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -496,7 +499,7 @@ def register_enterprise():
         enterprise_name = enterprise_result['enterprise_name']
         
         # Save email-enterprise mapping to database
-        local_db.upsert_mapping(email, enterprise_name)
+        db.upsert_mapping(email, enterprise_name)
         
         return jsonify({
             'status': 'success',

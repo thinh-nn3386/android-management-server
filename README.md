@@ -109,18 +109,6 @@ The server is configured to accept requests from frontend development server run
 - **Methods:** GET, POST, PUT, DELETE, OPTIONS
 - **Headers:** Content-Type, Authorization
 
-To modify CORS settings for production, update the `CORS()` configuration in `app.py`:
-
-```python
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://your-frontend-domain.com"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
-```
-
 ## Project Structure
 
 ```

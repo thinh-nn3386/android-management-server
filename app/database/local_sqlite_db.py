@@ -1,12 +1,9 @@
-"""
-Local SQLite database for email -> enterprise mapping
-"""
 import sqlite3
 from contextlib import contextmanager
 from config import Config
+from .base import DatabaseInterface
 
-
-class LocalDatabase:
+class LocalDatabase(DatabaseInterface):
     """SQLite-backed storage for email-enterprise mapping"""
 
     def __init__(self, db_path=None):
@@ -24,8 +21,7 @@ class LocalDatabase:
             connection.close()
 
     def _init_db(self):
-        with self._get_connection() as connection:
-            # Email-enterprise mapping table
+        with self._get_connection(self) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS email_enterprise (
@@ -34,7 +30,6 @@ class LocalDatabase:
                 )
                 """
             )
-            # User authentication table
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS users (
@@ -47,7 +42,7 @@ class LocalDatabase:
             )
 
     def get_enterprise_name(self, email):
-        with self._get_connection() as connection:
+        with self._get_connection(self) as connection:
             cursor = connection.execute(
                 "SELECT enterprise_name FROM email_enterprise WHERE email = ?",
                 (email.lower(),)
@@ -56,25 +51,24 @@ class LocalDatabase:
             return row["enterprise_name"] if row else None
 
     def upsert_mapping(self, email, enterprise_name):
-        with self._get_connection() as connection:
+        with self._get_connection(self) as connection:
             connection.execute(
                 "INSERT OR REPLACE INTO email_enterprise (email, enterprise_name) VALUES (?, ?)",
                 (email.lower(), enterprise_name)
             )
 
     def list_mappings(self):
-        with self._get_connection() as connection:
+        with self._get_connection(self) as connection:
             cursor = connection.execute(
-                "SELECT email, enterprise_name FROM email_enterprise ORDER BY email ASC"
+                "SELECT email, enterprise_name FROM email_enterprise ORDER BY email "
             )
             return [
                 {"email": row["email"], "enterprise_name": row["enterprise_name"]}
                 for row in cursor.fetchall()
             ]
-    
+
     def create_user(self, email, password_hash):
-        """Create a new user with hashed password"""
-        with self._get_connection() as connection:
+        with self._get_connection(self) as connection:
             try:
                 connection.execute(
                     "INSERT INTO users (email, password_hash) VALUES (?, ?)",
@@ -82,11 +76,10 @@ class LocalDatabase:
                 )
                 return True
             except sqlite3.IntegrityError:
-                return False  # User already exists
-    
+                return False
+
     def get_user(self, email):
-        """Get user by email"""
-        with self._get_connection() as connection:
+        with self._get_connection(self) as connection:
             cursor = connection.execute(
                 "SELECT id, email, password_hash, created_at FROM users WHERE email = ?",
                 (email.lower(),)

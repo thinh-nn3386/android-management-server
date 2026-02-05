@@ -12,7 +12,9 @@ class Config:
     """Base configuration"""
     CLOUD_PROJECT_ID = os.getenv('CLOUD_PROJECT_ID')
     SERVICE_ACCOUNT_JSON = os.getenv('SERVICE_ACCOUNT_JSON')
-    SQLITE_DB_PATH = os.getenv('SQLITE_DB_PATH', 'local.db')
+    SQLITE_DB_PATH = os.getenv('SQLITE_DB_PATH')
+
+    DATABASE_TYPE = os.getenv("DATABASE_TYPE", "cloud")
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
     JWT_EXPIRATION_HOURS = int(os.getenv('JWT_EXPIRATION_HOURS', 24))
     FLASK_ENV = os.getenv('FLASK_ENV', 'production')

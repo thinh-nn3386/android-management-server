@@ -4,7 +4,6 @@ Google Cloud authentication utilities
 import os
 import certifi
 from google.oauth2 import service_account
-from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from config import Config
 
@@ -89,10 +88,6 @@ class GoogleAuthClient:
                 'message': f'Authentication check failed: {str(e)}',
                 'error_type': type(e).__name__
             }
-    
-    def get_service(self):
-        """Get the Android Management API service"""
-        return self.service
     
     def list_enterprises(self):
         """
@@ -218,6 +213,7 @@ class GoogleAuthClient:
                 "permissions": [
                     "APPROVE_APPS"
                 ],
+                "parentFrameUrl": "https://localhost:3000/home/playstore",
                 "enabledFeatures": [
                    "FEATURE_UNSPECIFIED"   
                 ]
