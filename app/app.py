@@ -10,7 +10,6 @@ from app.repositories.enterprise_repository import EnterpriseRepository
 from app.repositories.user_repository import UserRepository
 from config import Config, validate_config
 from auth import GoogleAuthClient
-from app.database import get_database
 from auth_utils import hash_password, verify_password, generate_jwt_token, decode_jwt_token
 
 # Initialize Flask app
@@ -40,15 +39,14 @@ enterprise_repo = EnterpriseRepository()
 
 def init_app():
     """Initialize the application"""
-    global google_auth_client, db
-    
+    global google_auth_client
+
     try:
         # Validate configuration
         validate_config()
         
         # Initialize Google Auth Client
         google_auth_client = GoogleAuthClient()
-        db = get_database()
         logger.info("Application initialized successfully")
         
     except Exception as e:
@@ -129,12 +127,6 @@ def register():
             "password": "password123"
         }
     """
-    if not db:
-        return jsonify({
-            'status': 'error',
-            'message': 'Application not properly initialized'
-        }), 503
-    
     data = request.get_json()
     
     if not data or 'email' not in data or 'password' not in data:
@@ -162,9 +154,9 @@ def register():
         # Hash password
         password_hash = hash_password(password)
         
-        # Create user in database
-        success = db.create_user(email, password_hash)
-        
+        # Create user in database using repository
+        success = user_repo.create_user(email, password_hash)
+
         if not success:
             return jsonify({
                 'status': 'error',
@@ -197,12 +189,6 @@ def login():
             "password": "password123"
         }
     """
-    if not db:
-        return jsonify({
-            'status': 'error',
-            'message': 'Application not properly initialized'
-        }), 503
-    
     data = request.get_json()
     
     if not data or 'email' not in data or 'password' not in data:
@@ -221,9 +207,9 @@ def login():
         }), 400
     
     try:
-        # Get user from database
-        user = db.get_user(email)
-        
+        # Get user from database using repository
+        user = user_repo.get_user(email)
+
         if not user:
             return jsonify({
                 'status': 'error',
@@ -269,7 +255,7 @@ def enterprise_login():
         - If found: enterprise_found=true with enterprise info
         - If not found: enterprise_found=false
     """
-    if not google_auth_client or not db:
+    if not google_auth_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -285,9 +271,9 @@ def enterprise_login():
         }), 401
     
     try:
-        # Check if email is mapped to an enterprise
-        enterprise_name = db.get_enterprise_name(email)
-        
+        # Check if email is mapped to an enterprise using repository
+        enterprise_name = enterprise_repo.get_enterprise_name(email)
+
         if not enterprise_name:
             return jsonify({
                 'status': 'success',
@@ -459,7 +445,7 @@ def register_enterprise():
     Returns:
         Enterprise information and saves email mapping to database
     """
-    if not google_auth_client or not db:
+    if not google_auth_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -498,9 +484,9 @@ def register_enterprise():
         
         enterprise_name = enterprise_result['enterprise_name']
         
-        # Save email-enterprise mapping to database
-        db.upsert_mapping(email, enterprise_name)
-        
+        # Save email-enterprise mapping to database using repository
+        enterprise_repo.upsert_mapping(email, enterprise_name)
+
         return jsonify({
             'status': 'success',
             'message': 'Enterprise registered successfully',
