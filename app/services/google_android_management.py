@@ -8,8 +8,8 @@ from googleapiclient.discovery import build
 from config import Config
 
 
-class GoogleAuthClient:
-    """Manages Google Cloud authentication and API clients"""
+class GoogleAndroidManagement:
+    """Manages Google Android management API clients"""
     
     def __init__(self):
         self.credentials = None
