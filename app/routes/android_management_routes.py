@@ -2,111 +2,85 @@
 Google Android Management API Routes
 Handles all enterprise, policy, and device management operations
 """
+from typing import Optional
+from functools import wraps
 from flask import Blueprint, request, jsonify
 import logging
 
 from app.repositories.enterprise_repository import EnterpriseRepository
-from app.services.google_android_management import GoogleAndroidManagement
+from app.api.google_android_management import GoogleAndroidManagement
 from app.utils.decorators import error_handler, require_jwt
+from app.utils.response_helpers import error_response, success_response
 
 # Initialize logger
 logger = logging.getLogger(__name__)
 
 # Initialize repository and Google client
 enterprise_repo = EnterpriseRepository()
-google_auth_client = None
+emm_client: Optional[GoogleAndroidManagement] = None
 
 
 def init_google_client():
     """Initialize Google Android Management client"""
-    global google_auth_client
+    global emm_client
     try:
-        google_auth_client = GoogleAndroidManagement()
+        emm_client = GoogleAndroidManagement()
         logger.info("Google Android Management client initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize Google client: {str(e)}")
         raise
 
+def require_client(f):
+    """Decorator requires the initialization of the client."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not emm_client:
+            return error_response('Application not properly initialized', 503)
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 
+# region Enterprise Routes
 # Create Blueprint
 enterprise_bp = Blueprint('enterprise', __name__, url_prefix='/api/v1/enterprise')
 
-
-@enterprise_bp.route('/login', methods=['POST'])
-@error_handler
+@enterprise_bp.route('', methods=['GET'])
+@error_handler('Get enterprise')
 @require_jwt
-def enterprise_login():
-    """
-    Check if user has a registered enterprise
-
-    Email is extracted from JWT token in Authorization header.
-    No request body required.
-
-    Returns:
-        - If found: enterprise_found=true with enterprise info
-        - If not found: enterprise_found=false
-    """
-    if not google_auth_client:
-        return jsonify({
-            'status': 'error',
-            'message': 'Application not properly initialized'
-        }), 503
-
+@require_client
+def get_enterprise():
     # Get email from JWT token (set by require_jwt decorator)
     email = getattr(request, 'user_email', None)
 
     if not email:
-        return jsonify({
-            'status': 'error',
-            'message': 'Unable to extract email from token'
-        }), 401
+        return error_response('Invalid token', 401)
 
-    try:
-        # Check if email is mapped to an enterprise using repository
-        enterprise_name = enterprise_repo.get_enterprise_name(email)
+    # Check if email is mapped to an enterprise using repository
+    enterprise_name = enterprise_repo.get_enterprise_name(email)
 
-        if not enterprise_name:
-            return jsonify({
-                'status': 'success',
-                'enterprise_found': False,
-                'message': 'No enterprise found for this email',
-                'email': email
-            }), 200
+    if not enterprise_name:
+        return success_response({
+            'enterprise': None
+        })
 
-        # Get enterprise details from Google Cloud
-        enterprise_result = google_auth_client.list_enterprises()
-        enterprises = enterprise_result.get('enterprises', [])
+    # Get enterprise details from Google API
+    enterprise = emm_client.get_enterprise(enterprise_name)
+    if not enterprise:
+        return success_response({
+            'enterprise': None
+        })
 
-        for enterprise in enterprises:
-            if enterprise['name'] == enterprise_name:
-                return jsonify({
-                    'status': 'success',
-                    'enterprise_found': True,
-                    'message': 'Enterprise found for this email',
-                    'email': email,
-                    'enterprise': enterprise
-                }), 200
+    return success_response({
+            'enterprise': enterprise
+        })
 
-        # Enterprise name exists in DB but not in Google Cloud
-        return jsonify({
-            'status': 'success',
-            'enterprise_found': False,
-            'message': 'Enterprise mapping exists but enterprise not found in Google Cloud',
-            'email': email
-        }), 200
-
-    except Exception as e:
-        logger.error(f"Error in enterprise login: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Enterprise check failed: {str(e)}'
-        }), 500
 
 
 @enterprise_bp.route('/signup-url', methods=['POST'])
-@error_handler
+@error_handler("Create Signup Url")
 @require_jwt
+@require_client
 def create_signup_url():
     """
     Generate a signup URL for enterprise registration
@@ -119,49 +93,27 @@ def create_signup_url():
     Returns:
         Signup URL and signup name
     """
-    if not google_auth_client:
-        return jsonify({
-            'status': 'error',
-            'message': 'Application not properly initialized'
-        }), 503
-
     data = request.get_json()
     if not data or 'callback_url' not in data:
-        return jsonify({
-            'status': 'error',
-            'message': 'callback_url is required'
-        }), 400
+        return error_response('callback_url is required', 400)
 
     callback_url = data['callback_url'].strip()
-
     if not callback_url:
-        return jsonify({
-            'status': 'error',
-            'message': 'callback_url cannot be empty'
-        }), 400
+        return error_response('callback_url cannot be empty', 400)
 
-    try:
-        signup_result = google_auth_client.generate_signup_url(callback_url=callback_url)
+    signup_result = emm_client.create_signup_url(callback_url=callback_url)
+    return success_response({
+            'signup_url': signup_result,
+        })
 
-        return jsonify({
-            'status': 'success',
-            'message': 'Signup URL generated successfully',
-            'signup_url': signup_result['url'],
-            'signup_name': signup_result['name']
-        }), 200
 
-    except Exception as e:
-        logger.error(f"Error generating signup URL: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to generate signup URL: {str(e)}'
-        }), 500
 
 
 @enterprise_bp.route('/webtoken', methods=['POST'])
 @error_handler
 @require_jwt
-def create_enterprise_webtoken():
+@require_client
+def create_web_token():
     """
     Create enterprise web token
 
@@ -169,41 +121,38 @@ def create_enterprise_webtoken():
         {
             "enterprise_name": "enterprises/LC...",
             "parent_frame_url": "https://your-domain.com" (optional),
-            "enable_features": ["PLAY_SEARCH", "PRIVATE_APPS", "WEB_APPS", "STORE_BUILDER"] (optional)
         }
 
     Returns:
         Web token information with value and URL
     """
-    if not google_auth_client:
-        return jsonify({
-            'status': 'error',
-            'message': 'Application not properly initialized'
-        }), 503
-
     data = request.get_json()
     if not data or 'enterprise_name' not in data:
         return jsonify({
             'status': 'error',
-            'message': 'enterprise_name is required'
+            'error': {
+                'code': 400,
+                'message': 'enterprise_name is required'
+            }
         }), 400
 
     enterprise_name = data['enterprise_name'].strip()
     if not enterprise_name:
         return jsonify({
             'status': 'error',
-            'message': 'enterprise_name cannot be empty'
+            'error': {
+                'code': 400,
+                'message': 'enterprise_name cannot be empty'
+            }
         }), 400
 
     # Optional WebToken parameters
     parent_frame_url = data.get('parent_frame_url')
-    enable_features = data.get('enable_features')
 
     try:
-        result = google_auth_client.create_web_token(
+        result = emm_client.create_web_token(
             enterprise_name=enterprise_name,
-            parent_frame_url=parent_frame_url,
-            enable_features=enable_features
+            parent_frame_url=parent_frame_url
         )
 
         return jsonify({
@@ -237,7 +186,7 @@ def register_enterprise():
     Returns:
         Enterprise information and saves email mapping to database
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -263,7 +212,7 @@ def register_enterprise():
 
     try:
         # Create enterprise using signup token
-        enterprise_result = google_auth_client.create_enterprise(
+        enterprise_result = emm_client.create_enterprise(
             signup_url_name=signup_url_name,
             enterprise_token=enterprise_token
         )
@@ -313,7 +262,7 @@ def list_policies():
     Query params:
         enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -328,7 +277,7 @@ def list_policies():
         }), 400
 
     try:
-        result = google_auth_client.list_policies(enterprise_name)
+        result = emm_client.list_policies(enterprise_name)
 
         return jsonify({
             'status': 'success',
@@ -360,7 +309,7 @@ def create_or_update_policy():
             "policy_body": { ... policy configuration ... }
         }
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -385,7 +334,7 @@ def create_or_update_policy():
         }), 400
 
     try:
-        result = google_auth_client.create_or_update_policy(
+        result = emm_client.create_or_update_policy(
             enterprise_name=enterprise_name,
             policy_name=policy_name,
             policy_body=policy_body
@@ -416,7 +365,7 @@ def delete_policy():
         enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
         policy_name: Policy name (e.g., 'my-policy')
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -432,7 +381,7 @@ def delete_policy():
         }), 400
 
     try:
-        result = google_auth_client.delete_policy(
+        result = emm_client.delete_policy(
             enterprise_name=enterprise_name,
             policy_name=policy_name
         )
@@ -464,7 +413,7 @@ def list_devices():
     Query params:
         enterprise_name: Enterprise name (e.g., 'enterprises/LC...')
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -479,7 +428,7 @@ def list_devices():
         }), 400
 
     try:
-        result = google_auth_client.list_devices(enterprise_name)
+        result = emm_client.list_devices(enterprise_name)
 
         return jsonify({
             'status': 'success',
@@ -509,7 +458,7 @@ def get_device(device_id):
     Path params:
         device_id: Device ID
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -524,7 +473,7 @@ def get_device(device_id):
         }), 400
 
     try:
-        result = google_auth_client.get_device(enterprise_name, device_id)
+        result = emm_client.get_device(enterprise_name, device_id)
 
         return jsonify({
             'status': 'success',
@@ -553,7 +502,7 @@ def create_enrollment_token():
             "policy_name": "my-policy"
         }
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -577,7 +526,7 @@ def create_enrollment_token():
         }), 400
 
     try:
-        result = google_auth_client.create_enrollment_token(
+        result = emm_client.create_enrollment_token(
             enterprise_name=enterprise_name,
             policy_name=policy_name
         )
@@ -608,7 +557,7 @@ def delete_device(device_id):
     Path params:
         device_id: Device ID
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
@@ -623,7 +572,7 @@ def delete_device(device_id):
         }), 400
 
     try:
-        result = google_auth_client.delete_device(
+        result = emm_client.delete_device(
             enterprise_name=enterprise_name,
             device_id=device_id
         )
@@ -650,13 +599,13 @@ def check_auth_status():
     Returns:
         JSON response with authentication status and details
     """
-    if not google_auth_client:
+    if not emm_client:
         return jsonify({
             'status': 'error',
             'message': 'Application not properly initialized'
         }), 503
 
-    auth_status = google_auth_client.check_authentication_status()
+    auth_status = emm_client.check_authentication_status()
 
     if auth_status['status'] == 'success':
         return jsonify(auth_status), 200
