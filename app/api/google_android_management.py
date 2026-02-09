@@ -7,7 +7,6 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from config import Config
 
-
 class GoogleAndroidManagement:
     """Manages Google Android management API clients"""
 
@@ -67,17 +66,17 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to list enterprises: {str(e)}")
+            raise Exception(f"Failed to list enterprises {str(e)}")
 
-    def get_enterprise(self, enterprise_name):
+    def get_enterprise(self, name):
         """Get enterprise details by name"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            return self.service.enterprises().get(name=enterprise_name).execute()
+            return self.service.enterprises().get(name=name).execute()
         except Exception as e:
-            raise Exception(f"Failed to get enterprise info: {str(e)}")
+            raise Exception(f"Failed to get enterprise info {str(e)}")
 
     def delete_enterprise(self, enterprise_name):
         """Delete an enterprise"""
@@ -85,9 +84,11 @@ class GoogleAndroidManagement:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            return self.service.enterprises().delete(name=enterprise_name).execute()
+            return self.service.enterprises().delete(
+                name=enterprise_name
+            ).execute()
         except Exception as e:
-            raise Exception(f"Failed to delete enterprise: {str(e)}")
+            raise Exception(f"Failed to delete enterprise {str(e)}")
 
     def create_signup_url(self, callback_url):
         """Generate enterprise signup URL"""
@@ -101,7 +102,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to generate signup URL: {str(e)}")
+            raise Exception(f"Failed to generate signup URL {str(e)}")
 
     def create_enterprise(self, signup_url_name, enterprise_token):
         """Create a new enterprise"""
@@ -118,7 +119,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to create enterprise: {str(e)}")
+            raise Exception(f"Failed to create enterprise {str(e)}")
 
     # endregion
 
@@ -142,7 +143,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to create web token: {str(e)}")
+            raise Exception(f"Failed to create web token {str(e)}")
 
     # endregion
 
@@ -161,76 +162,76 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to list policies: {str(e)}")
+            raise Exception(f"Failed to list policies {str(e)}")
 
-    def get_policy(self, enterprise_name, policy_name):
+    def get_policy(self, enterprise_name, policy_id):
         """Get policy details"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            name = f"{enterprise_name}/policies/{policy_name}"
+            name = f"{enterprise_name}/policies/{policy_id}"
             return self.service.enterprises().policies().get(name=name).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to get policy: {str(e)}")
+            raise Exception(f"Failed to get policy {str(e)}")
 
-    def update_policy(self, enterprise_name, policy_name, policy_body):
+    def update_policy(self, enterprise_name, policy_id, policy_body):
         """Update an existing policy"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            name = f"{enterprise_name}/policies/{policy_name}"
+            name = f"{enterprise_name}/policies/{policy_id}"
             return self.service.enterprises().policies().patch(
                 name=name,
                 body=policy_body
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to update policy: {str(e)}")
+            raise Exception(f"Failed to update policy {str(e)}")
 
-    def delete_policy(self, enterprise_name, policy_name):
+    def delete_policy(self, enterprise_name, policy_id):
         """Delete a policy"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            name = f"{enterprise_name}/policies/{policy_name}"
+            name = f"{enterprise_name}/policies/{policy_id}"
             return self.service.enterprises().policies().delete(name=name).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to delete policy: {str(e)}")
+            raise Exception(f"Failed to delete policy {str(e)}")
 
-    def add_policy_applications(self, enterprise_name, policy_name, modify_body):
+    def modify_policy_applications(self, enterprise_name, policy_id, modify_body):
         """Add applications to a policy"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            name = f"{enterprise_name}/policies/{policy_name}"
+            name = f"{enterprise_name}/policies/{policy_id}"
             return self.service.enterprises().policies().modifyPolicyApplications(
                 name=name,
                 body=modify_body
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to add policy applications: {str(e)}")
+            raise Exception(f"Failed to add policy applications {str(e)}")
 
-    def remove_policy_applications(self, enterprise_name, policy_name, remove_body):
+    def remove_policy_applications(self, enterprise_name, policy_id, remove_body):
         """Remove applications from a policy"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            name = f"{enterprise_name}/policies/{policy_name}"
+            name = f"{enterprise_name}/policies/{policy_id}"
             return self.service.enterprises().policies().removePolicyApplications(
                 name=name,
                 body=remove_body
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to remove policy applications: {str(e)}")
+            raise Exception(f"Failed to remove policy applications {str(e)}")
 
     # endregion
 
@@ -246,22 +247,26 @@ class GoogleAndroidManagement:
             return self.service.enterprises().applications().get(name=name).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to get application: {str(e)}")
+            raise Exception(f"Failed to get application {str(e)}")
 
     # endregion
 
     # region Devices
 
-    def list_devices(self, enterprise_name):
+    def list_devices(self, enterprise_name, page_size=20, page_token=None):
         """List all devices for an enterprise"""
         try:
             if not self.service:
                 raise Exception("Service not initialized")
 
-            return self.service.enterprises().devices().list(parent=enterprise_name).execute()
+            return self.service.enterprises().devices().list(
+                parent=enterprise_name,
+                page_size=page_size,
+                page_token=page_token
+            ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to list devices: {str(e)}")
+            raise Exception(f"Failed to list devices {str(e)}")
 
     def get_device(self, enterprise_name, device_id):
         """Get device details by ID"""
@@ -273,7 +278,7 @@ class GoogleAndroidManagement:
             return self.service.enterprises().devices().get(name=name).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to get device: {str(e)}")
+            raise Exception(f"Failed to get device {str(e)}")
 
     def update_device(self, enterprise_name, device_id, patch_body):
         """Update device configuration"""
@@ -288,7 +293,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to update device: {str(e)}")
+            raise Exception(f"Failed to update device {str(e)}")
 
     def delete_device(self, enterprise_name, device_id):
         """Delete a device"""
@@ -300,7 +305,7 @@ class GoogleAndroidManagement:
             return self.service.enterprises().devices().delete(name=name).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to delete device: {str(e)}")
+            raise Exception(f"Failed to delete device {str(e)}")
 
     def issue_device_command(self, enterprise_name, device_id, command_body):
         """Issue a command to a device"""
@@ -315,7 +320,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to issue device command: {str(e)}")
+            raise Exception(f"Failed to issue device command {str(e)}")
 
     # endregion
 
@@ -332,7 +337,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to list enrollment tokens: {str(e)}")
+            raise Exception(f"Failed to list enrollment tokens {str(e)}")
 
     def get_enrollment_token(self, enterprise_name, enrollment_token_id):
         """Get enrollment token details"""
@@ -346,7 +351,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to get enrollment token: {str(e)}")
+            raise Exception(f"Failed to get enrollment token {str(e)}")
 
     def create_enrollment_token(self, enterprise_name, body_enrollment):
         """Create a new enrollment token"""
@@ -360,7 +365,7 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to create enrollment token: {str(e)}")
+            raise Exception(f"Failed to create enrollment token {str(e)}")
 
     def delete_enrollment_token(self, enterprise_name, enrollment_token_id):
         """Delete an enrollment token"""
@@ -374,6 +379,6 @@ class GoogleAndroidManagement:
             ).execute()
 
         except Exception as e:
-            raise Exception(f"Failed to delete enrollment token: {str(e)}")
+            raise Exception(f"Failed to delete enrollment token {str(e)}")
 
     # endregion

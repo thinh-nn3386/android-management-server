@@ -78,27 +78,11 @@ The server will start on `http://localhost:8088`
 
 ## API Documentation
 
-For complete API documentation including all endpoints, request/response examples, and testing instructions, see [API_DOC.md](API_DOC.md).
+For complete API documentation including all endpoints, request/response examples, and testing instructions.
 
 ### Quick API Overview
 
-**Public Endpoints (No Auth Required):**
-- `GET /health` - Health check
-- `GET /api/v1/status` - API status
-- `POST /api/v1/register` - Register new user
-- `POST /api/v1/login` - Login and get JWT token
-
-**Protected Endpoints (Require JWT):**
-- `POST /api/v1/enterprise/login` - Check enterprise registration
-- `POST /api/v1/enterprise/signup-url` - Generate signup URL for registration
-- `POST /api/v1/enterprise/webtoken` - Create enterprise web token
-- `GET /api/v1/auth/status` - Verify service account auth
-- `POST /api/v1/enterprise/register` - Register new enterprise
-- `GET/POST/DELETE /api/v1/policies` - Policy management
-- `GET/POST/DELETE /api/v1/devices` - Device management
-- `POST /api/v1/devices/enrollment-token` - Generate enrollment token
-
-See [API_DOC.md](API_DOC.md) for detailed documentation.
+See [Android Management API Reference](https://developers.google.com/android/management/reference/rest) for detailed documentation.
 
 ## CORS Configuration
 
@@ -140,17 +124,6 @@ The API includes comprehensive error handling:
 - 404: Not Found
 - 500: Internal Server Error
 - 503: Service Unavailable
-
-## Future Enhancements
-
-- [ ] Device management endpoints
-- [ ] Policy management endpoints
-- [ ] User management endpoints
-- [ ] Database integration
-- [ ] Request logging and monitoring
-- [ ] Rate limiting
-- [ ] API authentication (JWT)
-- [ ] Comprehensive testing suite
 
 ## License
 
