@@ -20,7 +20,7 @@ user_repo = UserRepository()
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1')
 
 @auth_bp.route('/register', methods=['POST'])
-@error_handler('register')
+@error_handler
 @require_payload("email", "password")
 def register():
     """
@@ -52,7 +52,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
-@error_handler("login")
+@error_handler
 @require_payload("email", "password")
 def login():
     """

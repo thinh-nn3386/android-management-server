@@ -1,4 +1,4 @@
-from config import Config
+from app.config import Config
 from .local_sqlite_db import LocalDatabase
 
 def get_database():

@@ -4,7 +4,7 @@ Authentication utilities for password hashing and JWT token management
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
-from config import Config
+from app.config import Config
 
 
 def hash_password(password):

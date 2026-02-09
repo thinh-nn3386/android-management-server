@@ -5,7 +5,7 @@ import os
 import certifi
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from config import Config
+from app.config import Config
 
 class GoogleAndroidManagement:
     """Manages Google Android management API clients"""
